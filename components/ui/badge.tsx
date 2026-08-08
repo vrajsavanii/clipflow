@@ -40,4 +40,36 @@ function Badge({ className, variant, size, ...props }: BadgeProps) {
   )
 }
 
+export interface SparkScoreBadgeProps {
+  score: number;
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}
+
+export function SparkScoreBadge({ score, size = 'md', className }: SparkScoreBadgeProps) {
+  const rounded = Math.min(100, Math.max(0, Math.round(score)));
+
+  let bgClass = 'bg-white/10 text-gray-400 border border-white/10';
+  if (rounded >= 80) {
+    bgClass = 'bg-gradient-to-r from-[#00FF88] to-[#00FFCC] text-black font-black shadow-[0_0_15px_rgba(0,255,136,0.4)] border-transparent';
+  } else if (rounded >= 60) {
+    bgClass = 'bg-gradient-to-r from-[#00D4FF] to-[#8B5CF6] text-white font-extrabold shadow-[0_0_15px_rgba(0,212,255,0.3)] border-transparent';
+  } else if (rounded >= 40) {
+    bgClass = 'bg-gradient-to-r from-[#FF9F0A] to-[#FF6B35] text-white font-bold border-transparent';
+  }
+
+  const sizeClasses = {
+    sm: 'h-6 px-2 text-[11px] gap-1',
+    md: 'h-8 px-3 text-xs gap-1.5',
+    lg: 'w-12 h-12 rounded-full text-base flex flex-col items-center justify-center p-0',
+  }[size];
+
+  return (
+    <div className={cn('inline-flex items-center justify-center rounded-full font-heading tracking-tight', bgClass, sizeClasses, className)}>
+      <span>⚡</span>
+      <span>{rounded}</span>
+    </div>
+  );
+}
+
 export { Badge, badgeVariants }

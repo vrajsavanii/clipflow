@@ -21,57 +21,53 @@ const CATEGORIES = ['All', 'Strategy', 'Product Update', 'Case Study', 'Data Ins
 const POSTS = [
   {
     id: 1,
-    title: 'How to reverse-engineer the TikTok Algorithm in 2024',
-    excerpt: 'The latest update changed everything. Here is how top creators are using ClipFlow\'s tension-mapping to guarantee For You Page placement.',
+    slug: 'podcast-to-tiktok-shorts-ai',
+    title: 'How to Turn a 1-Hour Podcast into 10 Viral TikToks (AI Guide)',
+    excerpt: 'Step-by-step guide to repurposing podcast episodes into viral TikTok clips using AI. Includes hook templates, caption tips, and the exact ClipFlow AI workflow.',
     category: 'Strategy',
-    date: 'Oct 24, 2024',
-    readTime: '5 min read',
+    date: 'Feb 2026',
+    readTime: '6 min read',
     color: '#00E5FF',
   },
   {
     id: 2,
-    title: 'Introducing Dynamic B-Roll Injection',
-    excerpt: 'Stop losing retention. Our newest AI model automatically fetches and overlays context-aware B-Roll exactly when viewer attention drops.',
-    category: 'Product Update',
-    date: 'Oct 18, 2024',
-    readTime: '3 min read',
+    slug: 'opus-clip-alternative-free',
+    title: 'Opus Clip vs ClipFlow AI: Which Free AI Clipper Wins in 2026?',
+    excerpt: 'Unbiased comparison of Opus Clip vs ClipFlow AI. Side-by-side: clip quality, pricing, caption styles, SparkScore™ vs virality ratings, and clean free tier exports.',
+    category: 'Comparison',
+    date: 'Feb 2026',
+    readTime: '7 min read',
     color: '#9945FF',
   },
   {
     id: 3,
-    title: 'The $100k/mo Faceless Channel Blueprint',
-    excerpt: 'We interviewed 5 creators who scaled YouTube Shorts empires entirely anonymously using our programmatic API.',
-    category: 'Case Study',
-    date: 'Oct 12, 2024',
-    readTime: '8 min read',
+    slug: 'animated-captions-short-form-video-retention',
+    title: '5 Animated Caption Styles That 3x Retention on Short-Form Video',
+    excerpt: 'Research-backed look at how animated word-by-word captions affect watch time on TikTok and Reels. Includes 5 styles to test and when to use each one.',
+    category: 'Design',
+    date: 'Jan 2026',
+    readTime: '5 min read',
     color: '#00FFA3',
   },
   {
     id: 4,
-    title: 'Why Retention Drops at Second 03 (And How to Fix It)',
-    excerpt: 'Analyzing 10 million shorts revealed a fatal flaw in how most creators edit their hooks. Here\'s the mathematical solution.',
+    slug: 'what-is-sparkscore-viral-prediction-ai',
+    title: 'What is SparkScore™? How AI Predicts Video Virality Before You Post',
+    excerpt: 'Deep dive into SparkScore™ — ClipFlow AI\'s proprietary virality algorithm. Learn how it scores clips from 0-100 and what factors predict viral performance.',
     category: 'Data Insights',
-    date: 'Oct 05, 2024',
+    date: 'Jan 2026',
     readTime: '6 min read',
     color: '#FF6B9D',
   },
   {
     id: 5,
-    title: 'Building the World\'s Fastest Video Pipeline',
-    excerpt: 'How we optimized our rust-accelerated FFmpeg core to process 4K video 10x faster than traditional cloud renderers.',
+    slug: '916-vertical-video-auto-crop-ai',
+    title: '9:16 Video Framing Guide: Why Auto-Crop AI Matters for Vertical Shorts',
+    excerpt: 'Why mobile-first framing is the #1 factor in short-form retention. How AI 9:16 auto-crop works, and why it beats manual editing for TikTok and Reels.',
     category: 'Engineering',
-    date: 'Sep 28, 2024',
-    readTime: '7 min read',
+    date: 'Jan 2026',
+    readTime: '5 min read',
     color: '#FFD700',
-  },
-  {
-    id: 6,
-    title: 'The Creator\'s Guide to Multi-Platform Distribution',
-    excerpt: 'Stop manually uploading to every platform. Learn how to leverage ClipFlow\'s auto-scheduler to dominate TikTok, Reels, and Shorts simultaneously.',
-    category: 'Strategy',
-    date: 'Sep 20, 2024',
-    readTime: '4 min read',
-    color: '#00E5FF',
   },
 ];
 
@@ -244,7 +240,9 @@ export default function BlogPage() {
 
                   {/* Title */}
                   <h2 className="text-lg font-bold font-heading text-white mb-3 leading-snug group-hover:transition-all">
-                    {post.title}
+                    <Link href={`/blog/${post.slug}`} className="hover:text-[#00E5FF] transition-colors">
+                      {post.title}
+                    </Link>
                   </h2>
 
                   {/* Excerpt */}
@@ -252,14 +250,13 @@ export default function BlogPage() {
                     {post.excerpt}
                   </p>
 
-                  {/* Read more link */}
-                  <motion.div
-                    className="flex items-center gap-1.5 text-xs font-bold group/link"
-                    style={{ color: post.color }}
-                  >
-                    Read Article
-                    <ArrowRight className="w-3.5 h-3.5 group-hover/link:translate-x-1 transition-transform" />
-                  </motion.div>
+                  {/* Read article link */}
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#00E5FF] group-hover:translate-x-1 transition-transform duration-200 mt-auto pt-4 border-t border-white/5">
+                    <Link href={`/blog/${post.slug}`} className="flex items-center gap-1.5 w-full">
+                      Read Article
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
                 </div>
               </motion.article>
             ))}

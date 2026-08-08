@@ -49,6 +49,52 @@
 }
 
 :root {
+  /* ── BACKGROUNDS ── */
+  --bg-base: #070710;           /* Near-void. Not black, has a blue soul */
+  --bg-surface: #0E0E1C;        /* Cards, modals, panels */
+  --bg-elevated: #14142A;       /* Hover states, active items */
+  --bg-overlay: rgba(14,14,28,0.95); /* Drawers, Command Palette */
+
+  /* ── BRAND GRADIENTS ── */
+  --gradient-spark: linear-gradient(135deg, #00FFFF 0%, #8B5CF6 50%, #FF006E 100%);
+  --gradient-hero: linear-gradient(180deg, rgba(0,255,255,0.08) 0%, transparent 60%);
+  --gradient-card: linear-gradient(135deg, rgba(0,255,255,0.04) 0%, rgba(139,92,246,0.04) 100%);
+  --gradient-score-high: linear-gradient(135deg, #00FF88, #00FFCC);   /* 80+ */
+  --gradient-score-mid: linear-gradient(135deg, #00D4FF, #8B5CF6);    /* 60-79 */
+  --gradient-score-low: linear-gradient(135deg, #FF9F0A, #FF6B35);    /* 40-59 */
+  --gradient-score-bad: linear-gradient(135deg, #FF3B5C, #8B0000);    /* <40 */
+
+  /* ── ACCENT COLORS ── */
+  --cyan: #00FFFF;
+  --cyan-dim: rgba(0,255,255,0.15);
+  --cyan-glow: 0 0 20px rgba(0,255,255,0.4), 0 0 60px rgba(0,255,255,0.15);
+  --purple: #8B5CF6;
+  --purple-dim: rgba(139,92,246,0.15);
+  --purple-glow: 0 0 20px rgba(139,92,246,0.4);
+  --pink: #FF006E;
+  --pink-dim: rgba(255,0,110,0.15);
+  --green: #00FF88;
+  --amber: #FF9F0A;
+
+  /* ── TEXT ── */
+  --text-primary: #F2F2FF;
+  --text-secondary: rgba(242,242,255,0.65);
+  --text-muted: rgba(242,242,255,0.38);
+  --text-inverse: #070710;
+
+  /* ── BORDERS ── */
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-default: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.18);
+  --border-cyan: rgba(0,255,255,0.30);
+  --border-purple: rgba(139,92,246,0.30);
+
+  /* ── SHADOWS ── */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3);
+  --shadow-lifted: 0 4px 16px rgba(0,0,0,0.5), 0 20px 60px rgba(0,0,0,0.3);
+  --shadow-glow-cyan: 0 0 0 1px rgba(0,255,255,0.2), 0 4px 20px rgba(0,255,255,0.15);
+  --shadow-glow-purple: 0 0 0 1px rgba(139,92,246,0.2), 0 4px 20px rgba(139,92,246,0.15);
+
   --background: oklch(0.08 0 0);
   --foreground: oklch(0.97 0 0);
   --card: oklch(0.12 0.01 245);
@@ -67,20 +113,40 @@
   --border: oklch(0.20 0.02 245 / 35%);
   --input: oklch(0.20 0.02 245 / 45%);
   --ring: oklch(0.65 0.22 295);
-  --chart-1: oklch(0.65 0.22 295);
-  --chart-2: oklch(0.65 0.2 195);
-  --chart-3: oklch(0.7 0.2 140);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
   --radius: 0.75rem;
-  --sidebar: oklch(0.09 0.01 245);
-  --sidebar-foreground: oklch(0.92 0 0);
-  --sidebar-primary: oklch(0.65 0.22 295);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.15 0.01 245);
-  --sidebar-accent-foreground: oklch(0.92 0 0);
-  --sidebar-border: oklch(0.20 0.02 245 / 35%);
-  --sidebar-ring: oklch(0.65 0.22 295);
+}
+
+/* ── UTILITY CLASSES ── */
+.glass {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.glass-cyan {
+  background: linear-gradient(135deg, rgba(0,255,255,0.04), rgba(14,14,28,0.8));
+  border: 1px solid var(--border-cyan);
+  backdrop-filter: blur(20px);
+}
+
+.glow-text-cyan {
+  color: var(--cyan);
+  text-shadow: 0 0 20px rgba(0,255,255,0.6);
+}
+
+.gradient-text {
+  background: var(--gradient-spark);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.section-divider {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-default), transparent);
+  margin: 96px 0;
 }
 
 @layer base {
