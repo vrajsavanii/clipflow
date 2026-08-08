@@ -156,8 +156,8 @@ async function poll() {
       .from('jobs')
       .select('*')
       .eq('type', 'transcribe')
-      .in('status', ['queued', 'processing', 'failed'])
-      .order('created_at', { ascending: false })
+      .eq('status', 'queued')
+      .order('created_at', { ascending: true })
       .limit(1);
 
     if (jobs && jobs.length > 0) {

@@ -142,7 +142,7 @@ async function processRenderJob(job: any) {
     execSync(ffmpegCmd, { stdio: 'pipe' });
   } catch (ffErr: any) {
     console.warn(`[RenderWorker] Subtitle burn-in fallback without subtitles...`, ffErr.stderr?.toString());
-    const simpleFfmpegCmd = `ffmpeg -y -i "${rawSlicePath}" -vf "crop=ih*(9/16):ih:(iw-crop_w)/2:0" -c:v libx264 -preset fast -crf 22 -c:a aac "${finalOutputPath}"`;
+    const simpleFfmpegCmd = `ffmpeg -y -i "${rawSlicePath}" -vf "crop=ih*9/16:ih:(iw-ow)/2:0" -c:v libx264 -preset fast -crf 22 -c:a aac "${finalOutputPath}"`;
     execSync(simpleFfmpegCmd, { stdio: 'pipe' });
   }
 
