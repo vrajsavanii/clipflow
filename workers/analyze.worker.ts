@@ -4,176 +4,232 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 
-// Load environment variables
 const envPath = path.join(__dirname, '../.env.local');
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
-} else {
-  dotenv.config();
-}
+if (fs.existsSync(envPath)) dotenv.config({ path: envPath });
+else dotenv.config();
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const groqApiKey = process.env.GROQ_API_KEY!;
+const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const groqApiKey  = process.env.GROQ_API_KEY!;
+const nvidiaKey   = process.env.NVIDIA_API_KEY;
 
 const supabase = createClient(supabaseUrl, serviceKey);
-const groq = new Groq({ apiKey: groqApiKey });
+const groq     = new Groq({ apiKey: groqApiKey });
 
-console.log('[AnalyzeWorker] Worker initialized. Polling for queued analyze jobs...');
+console.log('[AnalyzeWorker] Started — polling for analyze jobs…');
 
+// ── helpers ───────────────────────────────────────────────────────────────────
+async function setJobProgress(jobId: string, pct: number, label: string) {
+  await supabase.from('jobs').update({ progress_pct: pct, stage_label: label }).eq('id', jobId);
+}
+
+async function groqWithBackoff(payload: any, retries = 4): Promise<any> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await groq.chat.completions.create(payload);
+    } catch (err: any) {
+      if (err?.status === 429 && i < retries - 1) {
+        const wait = Math.pow(2, i + 1) * 1000;
+        console.warn(`[AnalyzeWorker] Groq rate-limited. Waiting ${wait / 1000}s…`);
+        await new Promise(r => setTimeout(r, wait));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+async function buildClipEmbedding(clipId: string, projectId: string, userId: string, text: string) {
+  if (!nvidiaKey) return;
+  try {
+    const res = await fetch('https://integrate.api.nvidia.com/v1/embeddings', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${nvidiaKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'nvidia/nv-embed-v2', input: [text], input_type: 'passage', encoding_format: 'float' })
+    });
+    const data: any = await res.json();
+    const embedding = data?.data?.[0]?.embedding;
+    if (embedding) {
+      await supabase.from('clip_embeddings').upsert({
+        clip_id: clipId, project_id: projectId, user_id: userId, content: text, embedding
+      }, { onConflict: 'clip_id' });
+    }
+  } catch (e: any) {
+    console.warn('[AnalyzeWorker] Embedding generation skipped:', e.message);
+  }
+}
+
+// ── main processing ───────────────────────────────────────────────────────────
 async function processAnalyzeJob(job: any) {
-  console.log(`[AnalyzeWorker] Claimed job ${job.id} for project ${job.project_id}`);
+  console.log(`[AnalyzeWorker] Claimed job ${job.id} → project ${job.project_id}`);
 
-  await supabase.from('jobs').update({ status: 'processing', progress_pct: 10, started_at: new Date().toISOString() }).eq('id', job.id);
+  await supabase.from('jobs').update({
+    status: 'processing', progress_pct: 5,
+    stage_label: 'Reading transcript…', started_at: new Date().toISOString()
+  }).eq('id', job.id);
   await supabase.from('projects').update({ status: 'analyzing' }).eq('id', job.project_id);
 
   const { data: project, error: pErr } = await supabase.from('projects').select('*').eq('id', job.project_id).single();
   if (pErr || !project) throw new Error(`Project ${job.project_id} not found`);
 
-  const transcriptJson = project.transcript_json;
-  const transcriptText = project.transcript_text || transcriptJson?.text || '';
+  const transcriptText = project.transcript_text || project.transcript_json?.text || '';
+  if (!transcriptText) throw new Error('Project has no transcript_text');
 
-  if (!transcriptText) {
-    throw new Error(`Project ${project.id} has no transcript_text`);
-  }
+  const duration = project.duration_sec || 0;
+  console.log(`[AnalyzeWorker] Transcript: ${transcriptText.length} chars, ${duration}s duration`);
 
-  console.log(`[AnalyzeWorker] Analyzing transcript (${transcriptText.length} chars, duration: ${project.duration_sec}s)...`);
-  await supabase.from('jobs').update({ progress_pct: 30 }).eq('id', job.id);
+  await setJobProgress(job.id, 20, 'Detecting viral hook moments with AI…');
 
-  // Send to Groq Llama-3.3-70b-versatile to extract top viral clips
-  const prompt = `You are a world-class viral short-form video editor (TikTok, YouTube Shorts, Instagram Reels).
-Analyze this video transcript and extract the TOP 3 to 5 MOST VIRAL, high-engagement clip segments.
-Target duration per clip: 30 to 75 seconds.
+  // ── Build prompt ──────────────────────────────────────────────────────────
+  const prompt = `You are a world-class viral short-form video editor for TikTok, YouTube Shorts, and Instagram Reels.
+Analyze this transcript and identify the TOP 5 MOST VIRAL clip moments.
 
-Requirements for each clip:
-1. Strong, immediate attention-grabbing HOOK in the first 3-5 seconds.
-2. Complete narrative or insightful punchline (high value, shocking truth, debate, or emotion).
-3. Ideal for 9:16 vertical shorts.
+RULES FOR SELECTION:
+- Each clip must be 30–90 seconds long
+- Must have a powerful HOOK in the first 3 seconds
+- Should contain: surprising facts, emotional peaks, debate, humor, or "aha" moments
+- Complete thoughts only — no cut-off sentences
+- Clips must NOT overlap
 
-TRANSCRIPT:
-${transcriptText.substring(0, 15000)}
+SCORING (spark_score 0–100):
+- 80–100: Killer hook + high emotion + surprising/controversial = stops scrolling
+- 60–79: Strong content, clear value, good pacing
+- 40–59: Average, needs trimming
+- <40: Skip — not viral
 
-Respond ONLY as a valid JSON object with key "clips", containing an array of objects:
+TRANSCRIPT (${duration}s total):
+${transcriptText.substring(0, 18000)}
+
+Return ONLY a valid JSON object with this exact structure:
 {
   "clips": [
     {
-      "start_sec": 12,
-      "end_sec": 58,
-      "title": "Why America Is Losing Its Global Dominance",
-      "hook": "America is no longer the sole superpower of the world.",
-      "subtitle": "Ian Bremmer breaks down the shifting global power dynamics.",
-      "spark_score": 92,
-      "score_breakdown": {
-        "hook": 19,
-        "story": 18,
-        "emotion": 18,
-        "shareability": 19,
-        "platform_fit": 18
-      },
-      "improvement_tips": "Start directly with the provocative claim, cut intro filler.",
-      "target_platforms": ["TikTok", "YouTube Shorts", "Instagram Reels"],
-      "caption_keywords": ["America", "Geopolitics", "Superpower", "Future"],
-      "caption_style": "neon_cyberpunk"
+      "start_sec": 45,
+      "end_sec": 92,
+      "title": "Short attention-grabbing title (max 60 chars)",
+      "hook_text": "The exact opening line that makes someone stop scrolling",
+      "explanation": "2-3 sentences: WHY this moment is viral-worthy and what emotion it triggers",
+      "spark_score": 87,
+      "improvement_tips": ["Add bold text hook overlay in first 2 seconds", "Cut last 5 seconds for better pacing"],
+      "target_platforms": ["TikTok", "Instagram Reels"],
+      "emotion": "curiosity",
+      "caption_style": "cyberpunk",
+      "caption_keywords": ["keyword1", "keyword2"]
     }
   ]
 }`;
 
-  const completion = await groq.chat.completions.create({
+  const completion = await groqWithBackoff({
     messages: [{ role: 'user', content: prompt }],
     model: 'llama-3.3-70b-versatile',
-    temperature: 0.3,
+    temperature: 0.25,
+    max_tokens: 3000,
     response_format: { type: 'json_object' }
   });
 
+  await setJobProgress(job.id, 65, 'Processing AI clip selections…');
+
   const rawJson = completion.choices[0]?.message?.content || '{}';
   let parsed: any;
-  try {
-    parsed = JSON.parse(rawJson);
-  } catch (err) {
-    console.error("[AnalyzeWorker] JSON parse error from LLM output:", rawJson);
-    throw new Error("Failed to parse AI clip analysis JSON");
+  try { parsed = JSON.parse(rawJson); }
+  catch { throw new Error(`AI returned invalid JSON: ${rawJson.substring(0, 200)}`); }
+
+  const clipsRaw: any[] = parsed.clips || [];
+  console.log(`[AnalyzeWorker] AI found ${clipsRaw.length} clips`);
+
+  if (clipsRaw.length === 0) throw new Error('AI analysis returned 0 clips');
+
+  // ── Dedup overlapping clips ─────────────────────────────────────────────
+  const sorted = [...clipsRaw].sort((a, b) => (b.spark_score || 0) - (a.spark_score || 0));
+  const deduped: any[] = [];
+  for (const c of sorted) {
+    const overlap = deduped.some(d =>
+      !(c.end_sec <= d.start_sec || c.start_sec >= d.end_sec) &&
+      Math.min(c.end_sec, d.end_sec) - Math.max(c.start_sec, d.start_sec) > 15
+    );
+    if (!overlap) deduped.push(c);
+    if (deduped.length >= 8) break;
   }
 
-  const clipsToInsert = parsed.clips || [];
-  console.log(`[AnalyzeWorker] Extracted ${clipsToInsert.length} viral clips! Inserting into database...`);
-  await supabase.from('jobs').update({ progress_pct: 70 }).eq('id', job.id);
+  await setJobProgress(job.id, 75, `Saving ${deduped.length} clips to database…`);
+
+  // ── Extract word-level captions for each clip ──────────────────────────
+  const allWords: Array<{ word: string; start: number; end: number }> = project.transcript_json?.words || [];
 
   const insertedClips: any[] = [];
-  for (const c of clipsToInsert) {
-    const duration = Math.max(10, Math.round((c.end_sec || 30) - (c.start_sec || 0)));
-    
+  for (const c of deduped) {
+    const startSec = +(c.start_sec || 0);
+    const endSec   = +(c.end_sec   || startSec + 45);
+    const durSec   = Math.max(5, Math.round(endSec - startSec));
+    const clipWords = allWords.filter(w => w.start >= startSec && w.end <= endSec + 1);
+
     const { data: newClip, error: cErr } = await supabase.from('clips').insert({
-      project_id: project.id,
-      user_id: job.user_id,
-      title: c.title || 'Viral Short Clip',
-      hook: c.hook || c.title,
-      subtitle: c.subtitle || '',
-      start_sec: c.start_sec || 0,
-      end_sec: c.end_sec || (c.start_sec + 45),
-      duration_sec: duration,
-      spark_score: c.spark_score || 85,
-      score_breakdown: c.score_breakdown || { hook: 17, story: 17, emotion: 17, shareability: 17, platform_fit: 17 },
-      improvement_tips: c.improvement_tips || 'Keep pacing snappy and engaging',
-      target_platforms: c.target_platforms || ['TikTok', 'YouTube Shorts', 'Instagram Reels'],
-      caption_keywords: c.caption_keywords || [],
-      caption_style: c.caption_style || 'neon_cyberpunk',
-      aspect_ratio: '9:16',
-      status: 'pending'
+      project_id:      project.id,
+      user_id:         job.user_id,
+      title:           c.title || 'Viral Clip',
+      hook_text:       c.hook_text || c.title,
+      explanation:     c.explanation || '',
+      improvement_tips: Array.isArray(c.improvement_tips) ? c.improvement_tips : [c.improvement_tips || 'Great clip!'],
+      start_time:      startSec,
+      end_time:        endSec,
+      duration_sec:    durSec,
+      spark_score:     Math.min(100, Math.max(0, c.spark_score || 80)),
+      captions_json:   clipWords,
+      caption_style:   c.caption_style || 'cyberpunk',
+      aspect_ratio:    '9:16',
+      status:          'queued'
     }).select().single();
 
     if (cErr) {
-      console.error("[AnalyzeWorker] Error inserting clip:", cErr.message);
+      console.error('[AnalyzeWorker] Clip insert error:', cErr.message);
     } else if (newClip) {
       insertedClips.push(newClip);
-      
-      // Automatically queue a render job for each generated clip!
+      // Queue render job
       await supabase.from('jobs').insert({
-        project_id: project.id,
-        user_id: job.user_id,
-        clip_id: newClip.id,
-        type: 'render',
-        status: 'queued'
+        project_id: project.id, user_id: job.user_id, clip_id: newClip.id,
+        type: 'render', status: 'queued'
       });
+      // Build NVIDIA NIM embedding (async, non-blocking)
+      const embeddingText = `${c.title} ${c.hook_text || ''} ${c.explanation || ''}`.trim();
+      buildClipEmbedding(newClip.id, project.id, job.user_id, embeddingText).catch(() => {});
     }
   }
 
-  // Update project status to ready
-  await supabase.from('projects').update({ status: 'ready' }).eq('id', job.project_id);
-  await supabase.from('jobs').update({ status: 'done', progress_pct: 100, finished_at: new Date().toISOString() }).eq('id', job.id);
+  await setJobProgress(job.id, 95, `Analysis complete — ${insertedClips.length} clips ready!`);
+  await supabase.from('projects').update({ status: 'rendering' }).eq('id', job.project_id);
+  await supabase.from('jobs').update({
+    status: 'done', progress_pct: 100,
+    stage_label: `Analysis done — ${insertedClips.length} clips queued`,
+    completed_at: new Date().toISOString(), finished_at: new Date().toISOString()
+  }).eq('id', job.id);
 
-  console.log(`[AnalyzeWorker] Project ${job.project_id} analysis complete! ${insertedClips.length} clips queued for rendering.`);
+  console.log(`[AnalyzeWorker] Done! ${insertedClips.length} clips queued for rendering.`);
 }
 
+// ── poll loop ─────────────────────────────────────────────────────────────────
 async function poll() {
   try {
-    const { data: jobs, error } = await supabase
-      .from('jobs')
-      .select('*')
-      .eq('type', 'analyze')
-      .eq('status', 'queued')
-      .order('created_at', { ascending: true })
-      .limit(1);
+    const { data: jobs } = await supabase
+      .from('jobs').select('*')
+      .eq('type', 'analyze').eq('status', 'queued')
+      .order('created_at', { ascending: true }).limit(1);
 
-    if (error) {
-      console.error('[AnalyzeWorker] Poll error:', error.message);
-    } else if (jobs && jobs.length > 0) {
-      const job = jobs[0];
+    if (jobs && jobs.length > 0) {
       try {
-        await processAnalyzeJob(job);
+        await processAnalyzeJob(jobs[0]);
       } catch (err: any) {
-        console.error(`[AnalyzeWorker] Job ${job.id} failed:`, err.message || err);
+        console.error(`[AnalyzeWorker] Job ${jobs[0].id} failed:`, err.message);
         await supabase.from('jobs').update({
-          status: 'failed',
-          error_msg: err.message || 'Analyze worker error',
-          finished_at: new Date().toISOString()
-        }).eq('id', job.id);
-        await supabase.from('projects').update({ status: 'failed' }).eq('id', job.project_id);
+          status: 'failed', stage_label: 'AI analysis failed — see error log',
+          error_msg: err.message, finished_at: new Date().toISOString()
+        }).eq('id', jobs[0].id);
+        await supabase.from('projects').update({ status: 'failed', error_msg: err.message }).eq('id', jobs[0].project_id);
       }
     }
   } catch (err: any) {
-    console.error('[AnalyzeWorker] Unexpected error in poll:', err);
+    console.error('[AnalyzeWorker] Poll error:', err.message);
   } finally {
-    setTimeout(poll, 3000);
+    setTimeout(poll, 4000);
   }
 }
 
