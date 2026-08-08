@@ -119,7 +119,7 @@ export default function SettingsPage() {
         setName(user.email?.split('@')[0] || 'User');
 
         const { data: profileData } = await supabase
-          .from('users')
+          .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
@@ -129,13 +129,11 @@ export default function SettingsPage() {
         } else if (!cancelled) {
           const defaults = {
             id: user.id,
-            plan: 'free',
-            minutes_used_this_month: 0,
-            minutes_limit: 30,
-            credits_remaining: 5,
-            storage_used_mb: 0,
+            plan: 'starter',
+            credits_used: 0,
+            credits_limit: 120,
           };
-          const { error } = await supabase.from('users').upsert(defaults);
+          const { error } = await supabase.from('profiles').upsert(defaults);
           if (!error) setProfile(defaults);
         }
       } catch (err) {

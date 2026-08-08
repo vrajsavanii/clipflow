@@ -22,62 +22,50 @@ export async function checkUserQuota(userId: string, durationSec: number): Promi
 
   // 1. Fetch user subscription/usage details
   const { data: user, error } = await supabaseAdmin
-    .from('users')
-    .select('plan, minutes_used_this_month, minutes_limit, credits_remaining')
+    .from('profiles')
+    .select('plan, credits_used, credits_limit')
     .eq('id', userId)
     .single();
 
   if (error || !user) {
     // Default fallback or create new free tier user row
-    const defaultLimit = 30; // 30 minutes for free tier
+    const defaultLimit = 120; // 120 minutes for free tier
     
     // Attempt to upsert default user row if missing
-    await supabaseAdmin.from('users').upsert({
+    await supabaseAdmin.from('profiles').upsert({
       id: userId,
-      plan: 'free',
-      minutes_used_this_month: 0,
-      minutes_limit: defaultLimit,
-      credits_remaining: 5
+      plan: 'starter',
+      credits_used: 0,
+      credits_limit: defaultLimit,
     });
 
     return {
       allowed: durationMin <= defaultLimit,
-      plan: 'free',
+      plan: 'starter',
       minutesUsed: 0,
       minutesLimit: defaultLimit,
       reason: durationMin > defaultLimit ? 'Video duration exceeds free limit' : undefined
     };
   }
 
-  const { plan, minutes_used_this_month, minutes_limit, credits_remaining } = user;
+  const { plan, credits_used, credits_limit } = user;
 
   // 2. Check if adding this video exceeds monthly limit
-  if (minutes_used_this_month + durationMin > minutes_limit) {
+  if (credits_used + durationMin > credits_limit) {
     return {
       allowed: false,
       plan,
-      minutesUsed: minutes_used_this_month,
-      minutesLimit: minutes_limit,
-      reason: `You have used ${minutes_used_this_month} of your ${minutes_limit} minutes. This video requires ${durationMin} minutes.`
-    };
-  }
-
-  // 3. For Free tier, check if they have credits remaining
-  if (plan === 'free' && credits_remaining <= 0) {
-    return {
-      allowed: false,
-      plan,
-      minutesUsed: minutes_used_this_month,
-      minutesLimit: minutes_limit,
-      reason: 'You have run out of free video download credits. Upgrade to Pro to get unlimited credits.'
+      minutesUsed: credits_used,
+      minutesLimit: credits_limit,
+      reason: `You have used ${credits_used} of your ${credits_limit} minutes. This video requires ${durationMin} minutes.`
     };
   }
 
   return {
     allowed: true,
     plan,
-    minutesUsed: minutes_used_this_month,
-    minutesLimit: minutes_limit
+    minutesUsed: credits_used,
+    minutesLimit: credits_limit
   };
 }
 
@@ -88,23 +76,19 @@ export async function consumeUserQuota(userId: string, durationSec: number): Pro
   const durationMin = Math.ceil(durationSec / 60);
 
   const { data: user, error } = await supabaseAdmin
-    .from('users')
-    .select('plan, minutes_used_this_month, credits_remaining')
+    .from('profiles')
+    .select('plan, credits_used')
     .eq('id', userId)
     .single();
 
   if (error || !user) return false;
 
   const updates: any = {
-    minutes_used_this_month: user.minutes_used_this_month + durationMin
+    credits_used: user.credits_used + durationMin
   };
 
-  if (user.plan === 'free') {
-    updates.credits_remaining = Math.max(0, user.credits_remaining - 1);
-  }
-
   const { error: updateError } = await supabaseAdmin
-    .from('users')
+    .from('profiles')
     .update(updates)
     .eq('id', userId);
 

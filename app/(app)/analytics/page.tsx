@@ -168,7 +168,7 @@ export default function AnalyticsPage() {
             .order('created_at', { ascending: false }),
           supabase.from('clips').select('*', { count: 'exact', head: true })
             .eq('user_id', user.id),
-          supabase.from('users').select('*').eq('id', user.id).single(),
+          supabase.from('profiles').select('*').eq('id', user.id).single(),
           supabase.from('projects').select('id', { count: 'exact', head: true })
             .eq('user_id', user.id),
         ]);
@@ -265,9 +265,9 @@ export default function AnalyticsPage() {
         setScoreTrend(scoreTrendData);
         if (profile) {
           setUsage({
-            used: profile.minutes_used_this_month || 0,
-            limit: profile.minutes_limit || 30,
-            storageUsed: profile.storage_used_mb || 0,
+            used: profile.credits_used || 0,
+            limit: profile.credits_limit || 120,
+            storageUsed: 0,
             storageLimit: 5120,
           });
         }

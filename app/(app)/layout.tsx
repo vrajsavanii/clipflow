@@ -133,7 +133,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           return;
         }
         const { data: profile, error } = await supabase
-          .from('users')
+          .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
@@ -143,28 +143,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             setUserProfile({
               name: user.email?.split('@')[0] || 'User',
               initial: (user.email?.[0] || 'U').toUpperCase(),
-              plan: profile.plan || 'free',
-              minutesLimit: profile.minutes_limit || 30,
-              minutesUsed: profile.minutes_used_this_month || 0,
-              creditsRemaining: profile.credits_remaining || 0,
+              plan: profile.plan || 'starter',
+              minutesLimit: profile.credits_limit || 120,
+              minutesUsed: profile.credits_used || 0,
+              creditsRemaining: (profile.credits_limit || 120) - (profile.credits_used || 0),
             });
           } else {
             const defaults = {
               id: user.id,
-              plan: 'free',
-              minutes_used_this_month: 0,
-              minutes_limit: 30,
-              credits_remaining: 5,
+              plan: 'starter',
+              credits_used: 0,
+              credits_limit: 120,
             };
-            const { error: upsertError } = await supabase.from('users').upsert(defaults);
+            const { error: upsertError } = await supabase.from('profiles').upsert(defaults);
             if (upsertError) throw upsertError;
             setUserProfile({
               name: user.email?.split('@')[0] || 'User',
               initial: (user.email?.[0] || 'U').toUpperCase(),
-              plan: 'free',
-              minutesLimit: 30,
+              plan: 'starter',
+              minutesLimit: 120,
               minutesUsed: 0,
-              creditsRemaining: 5,
+              creditsRemaining: 120,
             });
           }
         }
@@ -175,10 +174,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           setUserProfile((prev) => prev || {
             name: 'User',
             initial: 'U',
-            plan: 'free',
-            minutesLimit: 30,
+            plan: 'starter',
+            minutesLimit: 120,
             minutesUsed: 0,
-            creditsRemaining: 5,
+            creditsRemaining: 120,
           });
         }
       } finally {

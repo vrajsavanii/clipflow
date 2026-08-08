@@ -25,12 +25,10 @@ export async function POST(req: NextRequest) {
     if (process.env.STRIPE_SECRET_KEY === 'sk_test_stripesecret' || !process.env.STRIPE_SECRET_KEY) {
       // Mock Stripe checkout for development/testing without real keys
       console.log('Using dummy Stripe keys. Bypassing Stripe and auto-upgrading user...');
-      const supabaseAdmin = await createClient(); // Service role isn't strictly needed if we just use the user's session, but let's use standard client
-      await supabaseAdmin.from('users').update({
+      const supabaseAdmin = await createClient();
+      await supabaseAdmin.from('profiles').update({
         plan: 'pro',
-        minutes_limit: 300,
-        credits_remaining: 9999,
-        plan_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        credits_limit: 1800,
       }).eq('id', session.user.id);
       
       return NextResponse.json({ url: `${req.nextUrl.origin}/dashboard?checkout=success` });

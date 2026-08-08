@@ -39,12 +39,10 @@ export async function POST(req: NextRequest) {
         if (userId) {
           // Upgrade user to Pro plan
           const { error } = await supabaseAdmin
-            .from('users')
+            .from('profiles')
             .update({
               plan: 'pro',
-              minutes_limit: 300,
-              credits_remaining: 9999,
-              plan_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+              credits_limit: 1800,
             })
             .eq('id', userId);
 
@@ -59,14 +57,12 @@ export async function POST(req: NextRequest) {
         const subscription = payload.payload.subscription.entity;
         const userId = subscription.notes?.userId;
         if (userId) {
-          // Downgrade user back to Free tier
+          // Downgrade user back to Starter
           const { error } = await supabaseAdmin
-            .from('users')
+            .from('profiles')
             .update({
-              plan: 'free',
-              minutes_limit: 30,
-              credits_remaining: 5,
-              plan_expires_at: null
+              plan: 'starter',
+              credits_limit: 120,
             })
             .eq('id', userId);
 

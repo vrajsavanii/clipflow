@@ -25,7 +25,7 @@ export async function GET() {
 
   // 3. What does auth.uid() return? (test with a raw query)
   const { data: rawUser } = await supabase
-    .from('users')
+    .from('profiles')
     .select('id, plan')
     .eq('id', user.id)
     .single();
@@ -33,7 +33,7 @@ export async function GET() {
   return NextResponse.json({
     auth_user_id: user.id,
     auth_email: user.email,
-    users_table_row: rawUser,
+    profiles_table_row: rawUser,
     projects_count: projects?.length ?? 0,
     projects: projects ?? [],
     projects_error: projErr?.message ?? null,
