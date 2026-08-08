@@ -1,0 +1,45 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug & temporary files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local environment variables
+.env*.local
+.env
+.env.production
+.env.development
+
+# vercel & turbo
+.vercel
+.turbo
+
+# media temp storage
+temp/
+public/temp/
+public/clips/
+public/renders/
+scripts/temp/
+*.mp4
+*.mp3
+*.m4a
+*.wav

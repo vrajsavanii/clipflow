@@ -1,0 +1,11 @@
+node_modules
+.next
+.turbo
+temp
+public/temp
+public/clips
+public/renders
+*.log
+*.mp4
+*.mp3
+*.m4a
