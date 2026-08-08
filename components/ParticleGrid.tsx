@@ -29,6 +29,7 @@ export default function ParticleGrid() {
     let rafId: number;
 
     function resize() {
+      if (!canvas) return;
       W = canvas.width  = canvas.offsetWidth;
       H = canvas.height = canvas.offsetHeight;
     }
@@ -48,6 +49,7 @@ export default function ParticleGrid() {
     }
 
     function draw() {
+      if (!ctx) return;
       ctx.clearRect(0, 0, W, H);
       const mx = mouseRef.current.x, my = mouseRef.current.y;
 
