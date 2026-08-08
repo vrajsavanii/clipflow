@@ -17,14 +17,15 @@ import { useProjectProgress } from '@/hooks';
 
 const STATUS_PROGRESS_MAP: Record<string, { progress: number; eta: string; title: string }> = {
   queued:          { progress: 5,  eta: "Queued...",           title: "Waiting for Worker" },
-  ingesting:       { progress: 5,  eta: "Waking up engine...", title: "Initializing" },
-  downloading:     { progress: 15, eta: "~4.5 mins left",     title: "Ingesting Media" },
-  transcribing:    { progress: 30, eta: "~3 mins left",       title: "Whisper V3 Transcription" },
-  transcribed:     { progress: 40, eta: "~3 mins left",       title: "Transcription Complete" },
-  visual_analyzing:{ progress: 50, eta: "~2.5 mins left",    title: "Computer Vision Analysis" },
-  face_detecting:  { progress: 65, eta: "~1.5 mins left",    title: "Active Speaker Tracking" },
+  ingesting:       { progress: 8,  eta: "Waking up engine...", title: "Initializing" },
+  downloading:     { progress: 18, eta: "~4.5 mins left",     title: "Ingesting Media" },
+  transcribing:    { progress: 38, eta: "~3 mins left",       title: "Whisper V3 Transcription" },
+  transcribed:     { progress: 52, eta: "~2.5 mins left",     title: "Transcription Complete" },
+  visual_analyzing:{ progress: 60, eta: "~2 mins left",       title: "Computer Vision Analysis" },
+  face_detecting:  { progress: 68, eta: "~1.5 mins left",    title: "Active Speaker Tracking" },
   analyzing:       { progress: 80, eta: "~1 min left",       title: "Viral Hook Extraction" },
-  analyzing_done:  { progress: 95, eta: "Finalizing renders", title: "Compiling Assets" },
+  analyzing_done:  { progress: 93, eta: "Finalizing renders", title: "Compiling Assets" },
+  rendering:       { progress: 96, eta: "~30 secs left",     title: "Rendering Video Clips" },
 };
 
 interface ClipItem {

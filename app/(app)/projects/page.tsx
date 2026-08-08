@@ -85,7 +85,8 @@ export default function ProjectsPage() {
         if (p.status === 'visual_analyzing') progress = 75;
         if (p.status === 'face_detecting') progress = 80;
         if (p.status === 'analyzing') progress = 88;
-        if (p.status === 'analyzing_done') progress = 95;
+        if (p.status === 'analyzing_done') progress = 93;
+        if (p.status === 'rendering') progress = 96;
         if (isReady) progress = 100;
 
         let title = 'Untitled Project';

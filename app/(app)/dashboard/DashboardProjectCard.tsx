@@ -10,8 +10,9 @@ import { LiveTimer } from '@/components/LiveTimer';
 export function DashboardProjectCard({ initialProject, dateStr, clipCount }: any) {
   const [project, setProject] = useState(initialProject);
 
+  const isActive = !['ready', 'completed', 'success', 'failed'].includes(project.status);
   useProjectProgress({
-    projectId: project.status === 'processing' || project.status === 'downloading' || project.status === 'ingesting' || project.status === 'transcribing' || project.status === 'visual_analyzing' || project.status === 'analyzing' || project.status === 'face_detecting' || project.status === 'queued' ? project.id : null,
+    projectId: isActive ? project.id : null,
     onUpdate: (data) => {
       if (data.failed) {
         setProject((p: any) => ({ ...p, status: 'failed', clipCount: data.clipCount || p.clipCount }));
@@ -41,7 +42,8 @@ export function DashboardProjectCard({ initialProject, dateStr, clipCount }: any
   if (project.status === 'visual_analyzing') { realProgress = 75; baseEta = "AI Hook & Emotion Scoring (~2m left)"; }
   if (project.status === 'face_detecting') { realProgress = 80; baseEta = "Auto 9:16 Speaker Framing (~1.5m left)"; }
   if (project.status === 'analyzing') { realProgress = 88; baseEta = "Rendering Subtitles & Shorts (~1m left)"; }
-  if (project.status === 'analyzing_done') { realProgress = 95; baseEta = "Finalizing Storage Upload..."; }
+  if (project.status === 'analyzing_done') { realProgress = 93; baseEta = "Finalizing Storage Upload..."; }
+  if (project.status === 'rendering') { realProgress = 96; baseEta = "Rendering Video Clips (~30s left)"; }
   if (isReady) { realProgress = 100; baseEta = "Ready"; }
 
   const currentClipCount = project.clipCount !== undefined ? project.clipCount : clipCount;

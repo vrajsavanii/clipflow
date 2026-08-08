@@ -34,7 +34,8 @@ const STATUS_PROGRESS_MAP: Record<string, { progress: number; eta: string; title
   visual_analyzing:{ progress: 50, eta: "~2.5 mins left",    title: "Computer Vision Analysis" },
   face_detecting:  { progress: 65, eta: "~1.5 mins left",    title: "Active Speaker Tracking" },
   analyzing:       { progress: 80, eta: "~1 min left",       title: "Viral Hook Extraction" },
-  analyzing_done:  { progress: 95, eta: "Finalizing renders", title: "Compiling Assets" },
+  analyzing_done:  { progress: 93, eta: "Finalizing renders", title: "Compiling Assets" },
+  rendering:       { progress: 96, eta: "~30 secs left",    title: "Rendering Video Clips" },
 };
 
 export default function IngestForm() {
@@ -180,7 +181,7 @@ export default function IngestForm() {
 
       toast.success('Pipeline engaged!', { description: 'AI Engine is processing your video.' });
       setProcessingProjectId(data.projectId);
-      setProjectStatus('downloading');
+      setProjectStatus('ingesting');
       setUrl('');
       // The worker engine will automatically pick up the job and update the DB
       addLog(`[${new Date().toLocaleTimeString()}] Worker Engine notified...`);
@@ -476,7 +477,7 @@ export default function IngestForm() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs font-mono text-gray-400">
                     <span>Neural Pipeline</span>
-                    <span>{projectUrl ? new URL(projectUrl).hostname : 'Media Intake'}</span>
+                    <span>{projectUrl ? (() => { try { return new URL(projectUrl).hostname; } catch { return 'Media Intake'; } })() : 'Media Intake'}</span>
                   </div>
                   <div className="w-full h-3 bg-[#0A0B0E] rounded-full overflow-hidden border border-white/10 shadow-inner">
                     <motion.div
@@ -583,7 +584,7 @@ export default function IngestForm() {
                 animate={{ opacity: 1, y: 0 }}
                 className="mt-8 pt-6 border-t border-white/10 flex justify-end"
               >
-                <Link href={`/clips/${processingProjectId}`} className="px-8 py-3 bg-white text-black font-bold rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 transition-all flex items-center gap-2">
+                <Link href={`/project/${processingProjectId}`} className="px-8 py-3 bg-white text-black font-bold rounded-lg shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 transition-all flex items-center gap-2">
                   <FileVideo className="w-5 h-5" /> View Extracted Clips
                 </Link>
               </motion.div>

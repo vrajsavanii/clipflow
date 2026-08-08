@@ -5,11 +5,19 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-const STATUS_ORDER = ['pending', 'queued', 'ingesting', 'downloading', 'transcribing', 'transcribed', 'visual_analyzing', 'face_detecting', 'analyzing', 'analyzing_done', 'ready', 'completed', 'failed']
+const STATUS_ORDER = ['pending', 'queued', 'ingesting', 'downloading', 'transcribing', 'transcribed', 'visual_analyzing', 'face_detecting', 'analyzing', 'analyzing_done', 'rendering', 'ready', 'completed', 'failed']
+
+// Static progress map for accurate per-stage percentages
+const STATUS_PROGRESS: Record<string, number> = {
+  pending: 3, queued: 5, ingesting: 8, downloading: 18,
+  transcribing: 38, transcribed: 52, visual_analyzing: 60,
+  face_detecting: 68, analyzing: 80, analyzing_done: 92,
+  rendering: 96, ready: 100, completed: 100, failed: 0,
+}
 
 function buildPayload(project: any) {
   const currentIdx = STATUS_ORDER.indexOf(project.status)
-  const progress = Math.min(100, Math.round((currentIdx / (STATUS_ORDER.length - 3)) * 100))
+  const progress = STATUS_PROGRESS[project.status] ?? (currentIdx >= 0 ? Math.min(99, Math.round((currentIdx / (STATUS_ORDER.length - 3)) * 100)) : 5)
   const activeJob = project.jobs?.find((j: any) => j.status === 'processing' || j.status === 'queued')
   const failedJob = project.jobs?.find((j: any) => j.status === 'failed')
   const doneJobs = project.jobs?.filter((j: any) => j.status === 'done').length || 0
@@ -101,7 +109,7 @@ export async function GET(
           const payload = buildPayload(current)
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
 
-          if (current.status === 'ready' || current.status === 'completed' || current.status === 'failed') {
+          if (current.status === 'ready' || current.status === 'completed' || current.status === 'success' || current.status === 'failed') {
             clearInterval(interval); clearInterval(keepalive)
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({ ...payload, type: 'complete' })}\n\n`))
             controller.close()
